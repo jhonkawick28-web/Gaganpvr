@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Bird</title>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: url('background.png') no-repeat center center fixed;
+            background-size: cover;
+            background-color: #70c5ce;
+            /* Fallback color */
+            touch-action: manipulation;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // ===== RESPONSIVE CANVAS =====
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+
+        const birdImg = new Image();
+        birdImg.src = "bird.png";
+
+        const pipeImg = new Image();
+        pipeImg.src = "pipe.png";
+
+        const flapSound = new Audio("flap.wav");
+        const hitSound = new Audio("hit.wav");
+
+
+        let birdSize = Math.min(canvas.width, canvas.height) * 0.08;
+        let pipeWidth = birdSize * 1.5;
+        let pipeGap = canvas.height * 0.25;
+
+        const gravity = 0.45;
+        const lift = -6;
+        const pipeSpeed = 4;
+
+        let originalHeight = birdSize;
+
+        let bird = {
+            x: canvas.width * 0.25,
+            y: canvas.height / 2,
+            width: birdSize,
+            height: birdSize,
+            velocity: 0
+        };
+
+        let pipes = [];
+        let frame = 0;
+        let score = 0;
+        let gameOver = false;
+
+        // ===== CREATE PIPE =====
+        function createPipe() {
+            let topHeight = Math.random() * (canvas.height * 0.5);
+            pipes.push({
+                x: canvas.width,
+                top: topHeight,
+                bottom: canvas.height - topHeight - pipeGap,
+                counted: false
+            });
+        }
+
+        // ===== DRAW BIRD =====
+        function drawBird() {
+            ctx.drawImage(
+                birdImg,
+                bird.x - bird.width / 2,
+                bird.y - bird.height / 2,
+                bird.width,
+                bird.height
+            );
+        }
+
+        // ===== DRAW PIPES =====
+        function drawPipes() {
+            pipes.forEach(pipe => {
+
+                ctx.save();
+                ctx.translate(pipe.x + pipeWidth, pipe.top);
+                ctx.scale(1, -1);
+                ctx.drawImage(pipeImg, 0, 0, pipeWidth, pipe.top);
+                ctx.restore();
+
+                ctx.drawImage(
+                    pipeImg,
+                    pipe.x,
+                    canvas.height - pipe.bottom,
+                    pipeWidth,
+                    pipe.bottom
+                );
+            });
+        }
+
+        // ===== COLLISION =====
+        function checkCollision(pipe) {
+            return (
+                bird.x + bird.width / 2 > pipe.x &&
+                bird.x - bird.width / 2 < pipe.x + pipeWidth &&
+                (
+                    bird.y - bird.height / 2 < pipe.top ||
+                    bird.y + bird.height / 2 > canvas.height - pipe.bottom
+                )
+            );
+        }
+
+        // ===== UPDATE GAME =====
+        function update() {
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (gameOver) {
+                ctx.fillStyle = "red";
+                ctx.font = "bold 40px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("Game Over", canvas.width / 2, canvas.height / 2);
+                ctx.font = "20px Arial";
+                ctx.fillText("Tap to Restart", canvas.width / 2, canvas.height / 2 + 40);
+                return;
+            }
+
+            frame++;
+
+            bird.velocity += gravity;
+            bird.y += bird.velocity;
+
+            if (bird.height < originalHeight) {
+                bird.height += 1.2;
+            }
+
+            if (frame % 100 === 0) createPipe();
+
+            pipes.forEach(pipe => {
+                pipe.x -= pipeSpeed;
+
+                if (checkCollision(pipe)) {
+                    gameOver = true;
+                    hitSound.play();
+                }
+
+                if (!pipe.counted && pipe.x + pipeWidth < bird.x) {
+                    score++;
+                    pipe.counted = true;
+                }
+            });
+
+            pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
+
+            if (bird.y + bird.height / 2 > canvas.height ||
+                bird.y - bird.height / 2 < 0) {
+                gameOver = true;
+                hitSound.play();
+            }
+
+            drawBird();
+            drawPipes();
+
+            ctx.fillStyle = "white";
+            ctx.font = "bold 28px Arial";
+            ctx.textAlign = "left";
+            ctx.fillText("Score: " + score, 20, 40);
+
+            requestAnimationFrame(update);
+
+
+            // ===== BACKGROUND TEXT =====
+            ctx.save();
+            ctx.globalAlpha = 0.55; // transparency (0.1 to 0.3 looks best)
+            ctx.fillStyle = "black";
+            ctx.textAlign = "center";
+            ctx.font = "bold 40px Arial";
+            ctx.fillText("Gagan❤️PVR", canvas.width / 2, canvas.height / 2);
+            ctx.restore();
+        }
+
+        // ===== JUMP =====
+        function jump() {
+            if (gameOver) {
+                location.reload();
+                return;
+            }
+
+            bird.velocity = lift;
+            bird.height = birdSize * 0.6;
+
+            flapSound.currentTime = 0;
+            flapSound.play();
+        }
+
+        document.addEventListener("click", jump);
+        document.addEventListener("touchstart", jump);
+        document.addEventListener("keydown", e => {
+            if (e.code === "Space") jump();
+        });
+
+        // START
+        birdImg.onload = function () {
+            update();
+        };
+
+    </script>
+
+</body>
+
+</html>
